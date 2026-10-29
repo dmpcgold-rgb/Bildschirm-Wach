@@ -20,8 +20,10 @@ jobs:
       - name: Install SDK packages
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
-          sdkmanager --version
-          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+          manager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$manager" ]; then manager="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"; fi
+          "$manager" --version
+          "$manager" 'platforms;android-35' 'build-tools;35.0.0'
       - name: Gradle 8.11.1
         uses: gradle/actions/setup-gradle@v4
         with:
