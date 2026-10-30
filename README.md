@@ -6,6 +6,8 @@ Schützt das Display vor dem automatischen Abschalten beim Serienschauen und and
 
 - Ein-/Aus-Schalter; läuft weiter, wenn die App im Hintergrund ist
 - 2 Stunden, 4 Stunden oder manuell
+- Live-Countdown (HH:MM:SS), Laufzeit seit Aktivierung und geplante Ausschaltuhrzeit
+- Zeitmessung bleibt beim App-Wechsel erhalten; Anzeige aktualisiert sich, sobald die App geöffnet ist
 - Android-Schnelleinstellungen-Kachel
 - Wiederherstellung nach Neustart oder Update, soweit die Systemberechtigung verfügbar bleibt
 - Keine Werbung, kein Netzwerkzugriff, keine gefährlichen Hintergrunddienste

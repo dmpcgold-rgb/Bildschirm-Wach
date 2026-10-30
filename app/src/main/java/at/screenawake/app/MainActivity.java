@@ -12,6 +12,8 @@ import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,6 +23,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import java.util.Date;
 
 public final class MainActivity extends Activity {
     private static final int BG = Color.rgb(7,18,27);
@@ -28,9 +31,17 @@ public final class MainActivity extends Activity {
     private static final int GREEN = Color.rgb(96,229,183);
     private static final int WHITE = Color.rgb(244,249,250);
     private static final int MUTED = Color.rgb(155,174,188);
-    private TextView badge, status, detail;
+    private TextView badge, status, detail, timePanelLabel, remainingValue, elapsedValue, endValue;
+    private LinearLayout timePanel;
     private Button mainButton, permission;
     private final Button[] durations = new Button[3];
+    private final Handler timerHandler = new Handler(Looper.getMainLooper());
+    private final Runnable timerTick = new Runnable() {
+        @Override public void run() {
+            if (status != null) refresh();
+            timerHandler.postDelayed(this, 1000L);
+        }
+    };
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -40,7 +51,13 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume();
+        timerHandler.removeCallbacks(timerTick);
         if (status != null) refresh();
+        timerHandler.postDelayed(timerTick, 1000L);
+    }
+    @Override protected void onPause() {
+        timerHandler.removeCallbacks(timerTick);
+        super.onPause();
     }
     private int dp(float value) {
         return (int)(getResources().getDisplayMetrics().density * value + .5f);
@@ -99,7 +116,23 @@ public final class MainActivity extends Activity {
         status = text("Display läuft normal",23,WHITE,true);
         add(card,status,12,7);
         detail = text("Deine bisherige Timeout-Einstellung ist aktiv.",14,MUTED,false);
-        add(card,detail,0,22);
+        add(card,detail,0,14);
+
+        timePanel = new LinearLayout(this);
+        timePanel.setOrientation(LinearLayout.VERTICAL);
+        timePanel.setPadding(dp(16),dp(16),dp(16),dp(16));
+        timePanel.setBackground(bg(BG,16,false));
+        add(card,timePanel,0,20);
+        timePanelLabel = text("NOCH AKTIV",12,MUTED,true);
+        timePanel.addView(timePanelLabel);
+        remainingValue = text("02:00:00",32,GREEN,true);
+        remainingValue.setFontFeatureSettings("tnum");
+        add(timePanel,remainingValue,4,10);
+        elapsedValue = text("Bereits aktiv: 00:00:00",14,WHITE,false);
+        timePanel.addView(elapsedValue);
+        endValue = text("",13,MUTED,false);
+        add(timePanel,endValue,5,0);
+
         mainButton = new Button(this);
         mainButton.setAllCaps(false); mainButton.setTextSize(17);
         mainButton.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
@@ -163,6 +196,25 @@ public final class MainActivity extends Activity {
         status.setText(active?"Bildschirm bleibt wach":"Display läuft normal");
         detail.setText(active ? "Der Bildschirm-Timeout ist verlängert – auch in anderen Apps." :
             "Deine ursprüngliche Timeout-Einstellung wird verwendet.");
+        timePanel.setVisibility(active ? View.VISIBLE : View.GONE);
+        if (active) {
+            long now = System.currentTimeMillis();
+            long started = AwakeManager.startedAt(this);
+            long deadline = AwakeManager.deadline(this);
+            boolean timed = deadline > 0;
+            timePanelLabel.setText(timed ? "NOCH AKTIV" : "ZEITLIMIT");
+            remainingValue.setText(timed ? SessionClock.remaining(now, deadline) : "Bis zum Ausschalten");
+            remainingValue.setTextSize(timed ? 32 : 22);
+            elapsedValue.setText("Bereits aktiv: " +
+                (started > 0 ? SessionClock.elapsed(now, started) : "nicht erfasst"));
+            endValue.setVisibility(timed ? View.VISIBLE : View.GONE);
+            if (timed) {
+                endValue.setText(now >= deadline
+                    ? "Zeitlimit erreicht – Ausschalten wird versucht"
+                    : "Automatisch aus um " +
+                        android.text.format.DateFormat.getTimeFormat(this).format(new Date(deadline)));
+            }
+        }
         mainButton.setText(active?"Wachhalten ausschalten":"Bildschirm wach halten");
         mainButton.setTextColor(active?WHITE:BG);
         mainButton.setBackground(bg(active?Color.rgb(44,66,77):GREEN,18,false));

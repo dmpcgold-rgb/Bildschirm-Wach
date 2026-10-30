@@ -15,6 +15,7 @@ public final class AwakeManager {
     private static final String ACTIVE = "active";
     private static final String OLD = "original_timeout";
     private static final String DEADLINE = "deadline_wall_clock";
+    private static final String START = "started_wall_clock";
     private static final String DURATION = "duration_minutes";
     private static final int DEFAULT_TIMEOUT = 30000;
     private AwakeManager() {}
@@ -31,6 +32,12 @@ public final class AwakeManager {
     }
     public static int duration(Context ctx) {
         return prefs(ctx).getInt(DURATION, 0);
+    }
+    public static long startedAt(Context ctx) {
+        return prefs(ctx).getLong(START, 0L);
+    }
+    public static long deadline(Context ctx) {
+        return prefs(ctx).getLong(DEADLINE, 0L);
     }
     public static void setDuration(Context ctx, int value) {
         if (value != 0 && value != 120 && value != 240) throw new IllegalArgumentException();
@@ -55,9 +62,12 @@ public final class AwakeManager {
         if (!canWrite(ctx)) return false;
         boolean oldActive = isActive(ctx);
         int old = oldActive ? prefs(ctx).getInt(OLD, DEFAULT_TIMEOUT) : timeout(ctx);
-        long deadline = TimeoutPolicy.expiresAt(System.currentTimeMillis(), duration(ctx));
-        if (!prefs(ctx).edit().putInt(OLD, old).putLong(DEADLINE, deadline)
-                .putBoolean(ACTIVE, true).commit()) return false;
+        long now = System.currentTimeMillis();
+        long previousStart = oldActive ? prefs(ctx).getLong(START, 0L) : 0L;
+        long started = previousStart > 0L ? previousStart : now;
+        long deadline = TimeoutPolicy.expiresAt(now, duration(ctx));
+        if (!prefs(ctx).edit().putInt(OLD, old).putLong(START, started)
+                .putLong(DEADLINE, deadline).putBoolean(ACTIVE, true).commit()) return false;
         try {
             boolean ok = Settings.System.putInt(ctx.getContentResolver(),
                 Settings.System.SCREEN_OFF_TIMEOUT, TimeoutPolicy.AWAKE_TIMEOUT_MS);
@@ -105,7 +115,7 @@ public final class AwakeManager {
     }
 
     private static void clear(Context ctx) {
-        prefs(ctx).edit().remove(ACTIVE).remove(OLD).remove(DEADLINE).commit();
+        prefs(ctx).edit().remove(ACTIVE).remove(OLD).remove(DEADLINE).remove(START).commit();
         cancelAlarm(ctx);
         refreshTile(ctx);
     }
